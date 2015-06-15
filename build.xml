@@ -1,0 +1,280 @@
+<!-- $Id: build.xml,v 1.2 2010-12-05 16:39:23 fbr Exp $ -->
+<project name="sql2java-iportalen"  default="all">
+    <property environment="env"/>
+    <property name="dist" value="${basedir}/dist"/>
+    <property name="src" value="${basedir}/src"/>
+    <property name="lib" value="${basedir}/lib"/>
+    <property name="htdoc" value="${basedir}/htdoc"/>
+    <property name="doc" value="${basedir}/doc"/>
+    <property name="config" value="${htdoc}/config"/>
+    <property name="ex.pack" value="sql2java"/>
+    <property name="database.driver"    value="org.hsqldb.jdbcDriver"/>
+    <property name="database.url"       value="jdbc:hsqldb:hsql://localhost"/>
+    <property name="database.user"      value="sa"/>
+    <property name="database.password"  value=""/>
+
+    <path id="my.classpath">
+        <pathelement location="${dist}/classes"/>
+        <fileset dir="${lib}">
+            <include name="*.jar"/>
+        </fileset>
+    </path>
+<!-- ================= -->
+<!--  COMPILE / CLEAN  -->
+<!-- ================= -->
+    <target name="compile">
+        <mkdir dir="${dist}/classes"/>
+        <javac destdir     = "${dist}/classes"
+               srcdir      = "${src}/java"
+               debug       = "on"
+               fork="yes"
+               optimize    = "off"
+               deprecation = "on">
+            <classpath>
+                <pathelement location="${dist}/classes"/>
+                <fileset dir="${lib}">
+                    <include name="*.jar"/>
+                </fileset>
+            </classpath>
+            <exclude name="${ex.pack}/**"/>
+        </javac>
+    </target>
+
+    <target name="clean">
+        <delete includeEmptyDirs="true">
+            <fileset dir="${dist}">
+                <exclude name="dummy"/>
+            </fileset>
+        </delete>
+        <delete includeEmptyDirs="false">
+            <fileset dir="${src}/java/sql2java/sample/database">
+                <exclude name="dummy"/>
+            </fileset>
+        </delete>            
+    </target>
+
+
+<!-- ====================================================== -->
+<!--    START HSQL SQL SERVER                               -->
+<!-- ====================================================== -->
+    <target name="hsql.server">
+        <echo message="Launching hypersonic SQL server"/>
+        <java classname="org.hsqldb.Server" fork="true">
+             <classpath>
+               <pathelement location="${lib}/hsqldb.jar"/>
+             </classpath>
+             <arg value="-url"/>
+             <arg value="${database.url}"/>
+             <arg value="-driver"/>
+             <arg value="${database.driver}"/>
+        </java>
+     </target>
+    
+    <!-- CREATE SCHEMA -->
+    <target name="hsql.create">
+        <sql driver="${database.driver}"
+             url="${database.url}"
+             userid="${database.user}"
+             password="${database.password}"
+             src="${config}/sample-hsqldb.sql"
+             classpathref="my.classpath">
+        </sql>
+    </target>
+    
+    <!-- DROP SCHEMA -->
+    <target name="hsql.drop">
+        <sql driver="${database.driver}"
+             url="${database.url}"
+             userid="${database.user}"
+             password="${database.password}"
+             src="${config}/sample-drop-schema.sql"
+             classpathref="my.classpath">
+        </sql>
+    </target>
+
+    <!-- HSQL GRAPHICAL MANAGER -->
+    <target name="hsql.manager">
+        <echo message="Please launch server (ant hsql.server)"/>
+        <java classname="org.hsqldb.util.DatabaseManager" fork="true">
+             <classpath>
+               <pathelement location="${lib}/hsqldb.jar"/>
+             </classpath>
+             <arg value="-url"/>
+             <arg value="${database.url}"/>
+             <arg value="-driver"/>
+             <arg value="${database.driver}"/>
+        </java>
+     </target>
+
+<!-- ====================================================== -->
+<!--   GENERATE/CLEAN JAVA CODE FOR THE EXAMPLE             -->
+<!-- ====================================================== -->
+
+    <target name="sample.generate.check">
+        <uptodate property="sample.doNotgenerate"
+                  targetfile="dist/classes/${ex.pack}/sample/database/CustomerBean.class">
+            <srcfiles dir="dist/classes/com/netkernel/sql2java" includes="*.class"/>
+            <srcfiles dir="${config}/" includes="*.sql"/>
+        </uptodate>
+    </target>
+
+    <target name="sample.generate" depends="compile, sample.generate.check" unless="sample.doNotgenerate">
+        <java classname = "com.netkernel.sql2java.Main" fork="true">
+            <arg value="${config}/sql2java.properties"/>
+            <classpath>
+                <pathelement location="${dist}/classes"/>
+                <fileset dir="${lib}">
+                    <include name="*.jar"/>
+                </fileset>
+            </classpath>
+        </java>
+    </target>
+
+    <target name="sample.compile" depends="sample.generate">
+        <javac destdir     = "${dist}/classes"
+               srcdir      = "${src}/java"
+               debug       = "on"
+               optimize    = "off"
+               fork="yes"
+               deprecation = "on">
+            <classpath>
+                <pathelement location="${dist}/classes"/>
+                <fileset dir="${lib}">
+                    <include name="*.jar"/>
+                </fileset>
+            </classpath>
+            <include name="${ex.pack}/**"/>
+        </javac>
+    </target>
+
+    <target name="sample.run" depends="sample.compile">
+        <property file="${config}/sql2java.properties"/>
+        <java classname ="sql2java.sample.SampleMain" fork="true">
+            <arg value="${jdbc.driver}"/>
+            <arg value="${jdbc.url}"/>
+            <arg value="${jdbc.username}"/>
+            <arg value="${jdbc.password}"/>
+            <classpath>
+                <pathelement location="${dist}/classes"/>
+                <fileset dir="${lib}">
+                    <include name="*.jar"/>
+                </fileset>
+            </classpath>
+        </java>
+    </target>
+
+<!-- JAVADOC -->
+    <target name="sample.javadoc">
+        <javadoc packagenames="sql2java.*"
+            destdir="${htdoc}/sample-javadoc"
+            sourcepath="${src}/java"
+            author="true"
+            version="true"
+            use="true"
+            link="http://java.sun.com/j2se/1.4.2/docs/api"
+            windowtitle="Documentation API">
+
+            <classpath>
+                <fileset dir="${lib}">
+                    <include name="*.jar"/>
+                </fileset>
+            </classpath>
+
+            <bottom><![CDATA[<i><a href="http://www.sourceforge.net/projects/sql2java" target="new">http://www.sourceforge.net/projects/sql2java</a></i>]]></bottom>
+        </javadoc>
+    </target>
+
+    <target name="sample.clean">
+        <property file="${config}/sql2java.properties"/>
+        <delete includeEmptyDirs="true">
+            <fileset dir="${mgrwriter.destdir}">
+                <include name="${ex.pack}/sample/database/*.java"/>
+            </fileset>
+            <fileset dir="${htdoc}/sample-javadoc"/>
+            <fileset dir="${htdoc}/sample-sourcedoc"/>
+        </delete>
+    </target>
+
+
+<!-- ++++++++++++ -->
+<!-- + SQL2JAVA + -->
+<!-- ++++++++++++ -->
+
+    <target name="sql2java" depends="compile">
+    	<delete file="${lib}/sql2java.jar"/>
+        <jar jarfile="${lib}/sql2java.jar">
+            <!-- classes -->
+            <fileset dir="${dist}/classes">
+                <include name="com/netkernel/**"/>
+                <exclude name="${ex.pack}/**"/>
+            </fileset>
+        </jar>
+    </target>
+
+    <target name="sql2java.dist" depends="sql2java, sample.run, sample.javadoc, j2h">
+        <!-- generated execution files -->
+
+        <!-- sql2java -->
+        <zip destfile="${dist}/sql2java-x.zip">
+            <!-- launch programs -->
+            <zipfileset dir="${htdoc}">
+                <include name="build.xml"/>
+                <include name="README.txt"/>
+            </zipfileset>
+			<zipfileset dir="${dist}">
+                <include name="sql2java.jar"/>
+            </zipfileset>
+			<zipfileset dir="${doc}">
+                <include name="index.html"/>
+            </zipfileset>
+			<zipfileset dir="${lib}">
+                <include name="hsqldb.jar"/>
+            </zipfileset>
+            <zipfileset dir="${config}">
+                <include name="sql2java.properties"/>
+                <include name="sample-hsqldb.sql"/>
+                <include name="sample-drop-schema.sql"/>
+            </zipfileset>                                         
+            <!-- sample java -->
+            <zipfileset dir="${src}/java/sql2java/sample" 
+            			prefix="src/java/sql2java/sample">
+            	<include name="SampleMain.java"/>
+            </zipfileset>   
+        </zip>
+
+        <!-- web site html -->
+        <zip destfile="${dist}/htdocs.zip">
+            <!-- doc folders -->
+            <zipfileset dir="${htdoc}">
+                  <exclude name="build.xml"/>
+                  <exclude name="README.txt"/>
+            </zipfileset>
+        </zip>
+
+
+    </target>
+
+    <!-- Java2Html -->
+    <target name="j2h">
+        <java fork="yes" classname="j2h">
+            <arg value="-js"/>
+            <arg value="${src}/java/${ex.pack}/sample"/>
+            <arg value="-d"/>
+            <arg value="${htdoc}/sample-sourcedoc"/>
+            <arg value="-n"/>
+            <arg value="Sample code generated by SQL2JAVA"/>
+
+            <classpath>
+                <pathelement location="${dist}/classes"/>
+                <fileset dir="${lib}">
+                    <include name="*.jar"/>
+                </fileset>
+            </classpath>
+        </java>
+    </target>
+
+    <target name="all" depends="sql2java.dist"/>
+    <target name="recompile" depends="clean, all"/>
+    <target name="rebuild" depends="sample.clean, clean, all"/>
+</project>
+
