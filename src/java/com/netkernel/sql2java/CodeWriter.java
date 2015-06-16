@@ -6,7 +6,6 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
-import java.sql.Types;
 import java.util.Hashtable;
 import java.util.Properties;
 import java.util.StringTokenizer;
@@ -935,10 +934,10 @@ public abstract class CodeWriter
                 indent(1, "        return; ");
                 indent(1, "    } ");
             } else if (columns[i].useEqualsInSetter()) {
-                indent(1, "    if ((newVal != null && this." + getVarName(columns[i]) + " != null && newVal.equals(this." + getVarName(columns[i]) +")) || ");
-                indent(1, "        (newVal == null && this." + getVarName(columns[i]) +" == null && "+ getInitializedVarName(columns[i])+")) {");
-                indent(1, "        return; ");
-                indent(1, "    } ");
+//                indent(1, "    if ((newVal != null && this." + getVarName(columns[i]) + " != null && newVal.equals(this." + getVarName(columns[i]) +")) || ");
+//                indent(1, "        (newVal == null && this." + getVarName(columns[i]) +" == null && "+ getInitializedVarName(columns[i])+")) {");
+//                indent(1, "        return; ");
+//                indent(1, "    } ");
             }
             
             indent(1, "    this." + getVarName(columns[i]) +" = newVal; ");
@@ -961,7 +960,11 @@ public abstract class CodeWriter
                 indent(1, " * @param newVal the new value to be assigned to " + getVarName(columns[i]));
                 indent(1, " */");
                 indent(1, "public void " + getSetMethod(columns[i]) + "(" + primType+ " newVal) {");
-                indent(1, "    " + getSetMethod(columns[i]) + "(new " + columns[i].getJavaType() + "(newVal));");
+                if (columns[i].getMappedType() == Column.M_BOOLEAN) {
+                	indent(1, "    " + getSetMethod(columns[i]) + "(Boolean.valueOf(newVal));");                	
+                } else {
+                	indent(1, "    " + getSetMethod(columns[i]) + "(new " + columns[i].getJavaType() + "(newVal));");                	
+                }
                 indent(1, "}");
                 indent(0, "");
             } catch (IllegalArgumentException iae) {
@@ -1208,6 +1211,13 @@ public abstract class CodeWriter
     	}
     	return ";";
     }
+    
+//    private String getDefaultModifiedValue(Column column) {
+//    	if (column.getMappedType() == Column.M_BOOLEAN && column.getNullable() == 0) {
+//    		return "true;";
+//    	}
+//    	return "false;";
+//    }
     
     private void writePreamble() throws Exception {
         writePreamble(new String[0], null, null);
